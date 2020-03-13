@@ -18,7 +18,7 @@ plt.plot(dataframe)
 plt.show()
 
 # number of lags used
-look_back = 36
+look_back = 12
 
 # number of data points to predict
 steps = 12
@@ -74,9 +74,10 @@ trainX, trainY = create_dataset(train, look_back)
 	
 
 # reshape input to be [samples, time steps, features]
-# trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
+trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
 
-trainX = numpy.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
+# trainX = numpy.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
+trainX[0,:,:]
 
 	
 # create and fit the LSTM network
@@ -94,8 +95,8 @@ testX = train[-look_back:]
 # month_test = numpy.reshape(month[trainX.shape[0]],(1,1))
 # testX = numpy.append(testX, month_test, axis=0)
     
-# testX = numpy.reshape(testX, (testX.sha   pe[1], 1, testX.shape[0]))
-testX = numpy.reshape(testX, (testX.shape[1], testX.shape[0], 1))
+testX = numpy.reshape(testX, (testX.shape[1], 1, testX.shape[0]))
+# testX = numpy.reshape(testX, (testX.shape[1], testX.shape[0], 1))
 testX.shape
 # make predictions
 
@@ -109,12 +110,12 @@ testA
 trainX.shape
 
 # simplest way
-# for i in range(steps-1):
-#     X = [testX[0,0,k] for k in range(1,look_back)]
-#     X.append(testPredict[0,0])
-#     testX = numpy.array(X,ndmin=3)
-#     testPredict = model.predict(testX)
-#     testA[i+1,:] = testPredict
+for i in range(steps-1):
+    X = [testX[0,0,k] for k in range(1,look_back)]
+    X.append(testPredict[0,0])
+    testX = numpy.array(X,ndmin=3)
+    testPredict = model.predict(testX)
+    testA[i+1,:] = testPredict
     
 # add variable number of months
 # for i in range(steps-1):
@@ -127,13 +128,13 @@ trainX.shape
 #     testA[i+1,:] = testPredict    
     
 # add time steps variable    
-for i in range(steps-1):
-    X = [testX[0,k,0] for k in range(1,look_back)]
-    X.append(testPredict[0,0])
-    testX = numpy.array(X,ndmin=3)
-    testX = numpy.reshape(testX, (1, look_back, 1))
-    testPredict = model.predict(testX)
-    testA[i+1,:] = testPredict    
+# for i in range(steps-1):
+#     X = [testX[0,k,0] for k in range(1,look_back)]
+#     X.append(testPredict[0,0])
+#     testX = numpy.array(X,ndmin=3)
+#     testX = numpy.reshape(testX, (1, look_back, 1))
+#     testPredict = model.predict(testX)
+#     testA[i+1,:] = testPredict    
 
 testA = scaler.inverse_transform(testA)
 test = scaler.inverse_transform(test)

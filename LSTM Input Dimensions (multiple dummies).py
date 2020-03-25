@@ -25,6 +25,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy
 from numpy import concatenate
+from keras.utils import to_categorical
 
 # fix random seed for reproducibility
 numpy.random.seed(7)
@@ -35,92 +36,45 @@ x = np.array([i for i in range(1,37)])
 y = np.array([i for i in range(37,40)])
 
 dataframe = pd.read_csv('/home/tdavidkova/Documents/Python/Data/airpassengers.csv', usecols=[1], engine='python')
-x = dataframe.values[range(132)]
-y = dataframe.values[range(132,144)]
 
-
-def timeseries_to_supervised(data, lag=1):
-	df = DataFrame(data)
-	columns = [df.shift(i) for i in range(1, lag+1)]
-	columns.append(df)
-	df = concat(columns, axis=1)
-	return df
-
-timesteps = 3
-
-x1 = timeseries_to_supervised(x,timesteps)
-x1
-x1 = x1[timesteps:]
-x1
-x2 = np.array(x1)
-x2
-x3 = x2[:,:timesteps]
-x3
-
-
-x4 = x3.reshape(x3.shape[0], timesteps, 1)
-x4
-x5 = np.append(x[-1].reshape(1,1,1), x4[-1,0:(timesteps-1),:].reshape(1,(timesteps-1),1),axis=1)
-x5
-x6 = np.append(y[0].reshape(1,1,1), x5[-1,0:(timesteps-1),:].reshape(1,(timesteps-1),1),axis=1)
-x6
-x7 = np.append(y[1].reshape(1,1,1), x6[-1,0:(timesteps-1),:].reshape(1,(timesteps-1),1),axis=1)
-x7
-y1 = x2[:,-1]
-y1
-
-yhat = numpy.zeros(shape=(3,))
-yhat[0] = y[0]
-yhat[1] = y[1]
-yhat[2] = y[2]
-
-model = Sequential()
-model.add(LSTM(3, input_shape=(x4.shape[1], x4.shape[2])))
-model.add(Dense(1))
-model.compile(loss='mean_squared_error', optimizer='adam')
-model.fit(x4, y1, epochs=1000, batch_size=1, verbose=2)
-
-model.predict(x5)
-model.predict(x6)
 
 
 ##############################################################
 ### A model with exogeneous variables
 
-timesteps = 3
+timesteps = 12
 
-steps = 10
+steps = 12
 
 
 ### time series of variable
-train = np.array([i for i in range(1,100)])
+train = dataframe.values[range(132)]
 x = train
 ### test sample of 3 vars
-test = np.array([i for i in range(100,110)])
+test = dataframe.values[range(132,144)]
 y = test
+
+ex = np.array([i for i in range(12)]*15)
+print(ex)
+# one hot encode
+ex = to_categorical(ex)
+print(ex)
 
 ### scale training sample in range -1 to 1
 scaler = MinMaxScaler(feature_range=(-1, 1))
 scaler = scaler.fit(x.reshape(-1,1))
 x = scaler.transform(x.reshape(-1,1))
+x
 
-### Z is the first esternal variable - shift it with 1 obs so that for each value we don't 
-### us ethe lag but the corresponding value as a predictor
-z = np.array([0,1]*100)[1:len(x)+1]
-### test sample of z
-yz = np.array([0,1]*100)[len(x)+1:len(x)+1+steps]
-### s is a second predictor/feature, sz is the test variable
-s = np.array([0,0.5,1]*100)[1:len(x)+1]
-ys = np.array([0,0.5,1]*100)[len(x)+1:len(x)+1+steps]
 
-zs = np.append(z.reshape(x.shape[0],1),
-               s.reshape(x.shape[0],1),axis = 1)
-zsy = np.append(yz.reshape(y.shape[0],1),
-                ys.reshape(y.shape[0],1),axis = 1)
+
+zs = ex[1:len(x)+1,:-1]
+
+zsy = ex[len(x)+1:len(x)+1+steps,:-1]
 ### append the time series and the predictors
 x = np.append(x, zs,axis = 1)
 x
-z
+
 features = x.shape[1] - 1
 ### same for the test sample
 
@@ -155,7 +109,7 @@ model = Sequential()
 model.add(LSTM(3, input_shape=(x4.shape[1], x4.shape[2])))
 model.add(Dense(1))
 model.compile(loss='mean_squared_error', optimizer='adam')
-model.fit(x4, y1, epochs=1000, batch_size=1, verbose=2)
+model.fit(x4, y1, epochs=100, batch_size=1, verbose=2)
 
 # Stateteful version - slower and less precise
 # model = Sequential()

@@ -19,10 +19,12 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
+from keras.utils import to_categorical
+from pandas import Series
 
-timesteps = 5
+timesteps = 24
 
-steps = 10
+steps = 12
 
 train = np.array([i for i in range(1,100)])
 x = train
@@ -30,21 +32,32 @@ x = train
 test = np.array([i for i in range(100,110)])
 y = test
 
+dataframe = pd.read_csv('/home/tdavidkova/Documents/Python/Data/airpassengers.csv', usecols=[1], engine='python')
+dataframe_diff = dataframe.diff()
+
+
+train = dataframe_diff.values[range(132)]
+x = train[1:]
+### test sample of 3 vars
+test = dataframe_diff.values[range(132,144)]
+y = test
+
+
 ### scale training sample in range -1 to 1
 scaler = MinMaxScaler(feature_range=(-1, 1))
 scaler = scaler.fit(x.reshape(-1,1))
 x = scaler.transform(x.reshape(-1,1))
 y = scaler.transform(y.reshape(-1,1))
 
-### Z is the first esternal variable 
+ex = np.array([i for i in range(12)]*15)
+print(ex)
+# one hot encode
+ex = to_categorical(ex)
+print(ex)
 
-z = np.array([0,1]*100)[:len(x)]
-### test sample of z
-yz = np.array([0,1]*100)[len(x):len(x)+steps]
-### s is a second predictor/feature, sz is the test variable
-s = np.array([0,0.5,1]*100)[:len(x)]
-ys = np.array([0,0.5,1]*100)[len(x):len(x)+steps]
+zs = ex[1:len(x)+1,:-1]
 
+zsy = ex[len(x)+1:len(x)+1+steps,:-1]
 
 
 # convert an array of values into a dataset matrix
@@ -58,12 +71,12 @@ def create_dataset(dataset, look_back=1):
 
 x1, y1 = create_dataset(x,timesteps)
 x1
+y1
 
-x2 = np.append(x1,z[timesteps:].reshape(-1,1),axis=1)
+x2 = np.append(x1,zs[timesteps:,:],axis=1)
 x2
-x3 = np.append(x2,s[timesteps:].reshape(-1,1),axis=1)
-x3
-x4 = np.reshape(x3, (x3.shape[0], 1, x3.shape[1]))
+
+x4 = np.reshape(x2, (x2.shape[0], 1, x2.shape[1]))
 x4
 
 # create and fit the LSTM network
@@ -71,10 +84,10 @@ model = Sequential()
 model.add(LSTM(3, input_shape=(x4.shape[1], x4.shape[2])))
 model.add(Dense(1))
 model.compile(loss='mean_squared_error', optimizer='adam')
-model.fit(x4, y1, epochs=1000, batch_size=1, verbose=2)
+model.fit(x4, y1, epochs=20, batch_size=1, verbose=2)
 
 
-x_1 = np.append(np.append(x[-timesteps:].reshape(1,-1), yz[0]),ys[0]).reshape(1,1,x4.shape[2])
+x_1 = np.append(x[-timesteps:,0].reshape(1,-1), zsy[0]).reshape(1,1,x4.shape[2])
 x_1
 yhat = np.zeros(shape=(steps,))
 yhat[0] = model.predict(x_1)
@@ -84,7 +97,7 @@ yhat[0] = model.predict(x_1)
    
 ### predict the next X steps
 for i in range(1,steps):
-    x_n = np.append(np.append(np.append(x_1[:,:,1:timesteps].reshape(1,-1),yhat[i-1]),yz[i]),ys[i]).reshape(1,1,x4.shape[2])
+    x_n = np.append(np.append(x_1[:,:,1:timesteps].reshape(1,-1),yhat[i-1]),zsy[i]).reshape(1,1,x4.shape[2])
     yhat[i] = model.predict(x_n)
     x_1 = x_n
     
@@ -99,10 +112,18 @@ trainPredictPlot[:, :] = np.nan
 trainPredictPlot[:len(train), :] = train.reshape(len(train),1)
 trainPredictPlot[len(train):len(train)+steps, :] = test.reshape(len(test),1)
 
+trainPredictPlot[0,0] = dataframe.values[0,0]
+for i in range(1,trainPredictPlot.shape[0]):
+    trainPredictPlot[i,0] += trainPredictPlot[i-1,0] 
+
 testPredictPlot = np.zeros(shape=(len(train)+steps,1))
 testPredictPlot[:, :] = np.nan
 testPredictPlot[len(train):len(train)+steps, :] = yhat
 
+len(train)
+testPredictPlot[len(train)-1,0] = dataframe.values[len(train)-1,0]
+for i in range(len(train),len(train) + steps):
+    testPredictPlot[i,0] += testPredictPlot[i-1,0] 
 
 plt.plot(trainPredictPlot)
 plt.plot(testPredictPlot)
